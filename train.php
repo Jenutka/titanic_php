@@ -16,6 +16,7 @@ use Rubix\ML\Transformers\MinMaxNormalizer;
 use Rubix\ML\Transformers\OneHotEncoder;
 use Rubix\ML\Classifiers\RandomForest;
 use Rubix\ML\Classifiers\ClassificationTree;
+use Rubix\ML\CrossValidation\Metrics\Accuracy;
 
 ini_set('memory_limit', '-1');
 
@@ -67,13 +68,12 @@ $logger->info('Joining features into one dataset');
 
 $dataset = $dataset_num->join($dataset_cat);
 
+
 $logger->info('Training and validating model');
 
 $estimator = new RandomForest(new ClassificationTree(10), 300, 0.2, false);
 
 $estimator->train($dataset);
-
-use Rubix\ML\CrossValidation\Metrics\Accuracy;
 
 $metric = new Accuracy();
 
@@ -88,6 +88,7 @@ if (strtolower(readline('Save this model? (y|[n]): ')) === 'y') {
     $estimator->save();
 
     $logger->info('Model saved as model.rbx');
+
 }
 
 ?>
