@@ -1,4 +1,7 @@
 # Rubix ML - Titanic - Machine Learning from Disaster
+
+![Titanic - Machine Learning from Disaster](/images/img_titanic.jpg)
+
 An example Rubix ML project that predicts which passengers survived the Titanic shipwreck using a Random Forest clasiffier and a very famous dataset from a [Kaggle competition] (https://www.kaggle.com/competitions/titanic). In this tutorial, you'll learn about classification and advanced preprocessing techniques. By the end of the tutorial, you'll be able to submit your own predictions to the Kaggle competition.
 
 - **Difficulty:** Medium
