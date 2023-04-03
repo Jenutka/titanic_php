@@ -2,13 +2,14 @@
 
 ![Titanic - Machine Learning from Disaster](/images/img_titanic.jpg)
 
-# Content
+## Content
 
 - [Installation](#installation)
 - [Requirements](#requierments)
 - [Recommended](#recommended)
 - [Turorial](#tutorial)
 - [Introduction](#introduction)
+- [Extracting the Data(#extracting-the-data)
 
 An example Rubix ML project that predicts which passengers survived the Titanic shipwreck using a Random Forest clasiffier and a very famous dataset from a [Kaggle competition] (https://www.kaggle.com/competitions/titanic). In this tutorial, you'll learn about classification and advanced preprocessing techniques. By the end of the tutorial, you'll be able to submit your own predictions to the Kaggle competition.
 
@@ -55,4 +56,16 @@ We'll choose [Random Forest](https://docs.rubixml.com/2.0/classifiers/random-for
 
 > **Note:** The source code for this example can be found in the [train.php](https://github.com/jenutka/titanic_php/train.php) file in project root.
 
+### Extracting the Data
+
+```php
+use Rubix\ML\Datasets\Labeled;
+use Rubix\ML\Extractors\CSV;
+use Rubix\ML\Extractors\ColumnPicker;
+
+$extractor = new ColumnPicker(new CSV('dataset.csv', true), [
+]);
+
+$dataset = Labeled::fromIterator($extractor);
+```
 
