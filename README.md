@@ -25,7 +25,7 @@ From Kaggle:
 ## Installation
 Clone the project locally using [Composer](https://getcomposer.org/):
 ```sh
-$ composer create-project rubix/titanic
+$ composer create-project jenutka/titanic_php
 ```
 
 ## Requirements
