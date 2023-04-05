@@ -30,12 +30,5 @@
         "sort-packages": true
     },
     "minimum-stability": "dev",
-    "prefer-stable": true,
-
-    "repostitories": [
-	    {
-		    "type": "vcs",
-		    "url": "https://github.com/jenutka/titanic_php"
-            }
-    ]
+    "prefer-stable": true
 }
