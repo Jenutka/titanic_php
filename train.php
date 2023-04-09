@@ -7,6 +7,7 @@ use Rubix\ML\Datasets\Labeled;
 use Rubix\ML\Datasets\Unlabeled;
 use Rubix\ML\Extractors\CSV;
 use Rubix\ML\Extractors\ColumnPicker;
+use Rubix\ML\Transformers\LambdaFunction;
 use Rubix\ML\PersistentModel;
 use Rubix\ML\Persisters\Filesystem;
 use Rubix\ML\Serializers\RBX;
@@ -21,57 +22,51 @@ use Rubix\ML\CrossValidation\Metrics\Accuracy;
 ini_set('memory_limit', '-1');
 
 $logger = new Screen();
+$serializer = new RBX();
 
 $logger->info('Loading data into memory');
 
-$extractor_num = new ColumnPicker(new CSV('train_im.csv', true), [
-    'Pclass', 'Age', 'Fare', 'SibSp', 'Parch', 'Survived',
+$extractor = new ColumnPicker(new CSV('train.csv', true), [
+    'Pclass', 'Age', 'Fare', 'SibSp', 'Parch', 'Sex', 'Embarked', 'Survived',
 ]);
 
-$extractor_cat = new ColumnPicker(new CSV('train_im.csv', true), [
-    'Sex', 'Embarked', 
-]);
+$logger->info('Processing features');
 
+$toPlaceholder = function (&$sample, $offset, $types) {
+    foreach ($sample as $column => &$value) {
+        if (empty($value) && $types[$column]->isContinuous()) {
+            $value = NAN;
+        }
+        else if (empty($value) && $types[$column]->isCategorical()) {
+            $value = '?';
+        }
+    }
+};
 
-$logger->info('Processing numerical features');
+$transformLabel = function ($label) {
+    return $label == 0 ? 'Dead' : 'Survived';
+};
 
-$dataset_num = Labeled::fromIterator($extractor_num)
-    ->apply(new NumericStringConverter());
+$dataset = Labeled::fromIterator($extractor)
+    ->apply(new NumericStringConverter())
+    ->transformLabels($transformLabel);
 
-$transformer_num = new MinMaxNormalizer();
+$minMaxNormalizer = new MinMaxNormalizer();
+$oneHotEncoder = new OneHotEncoder();
+$imputer = new MissingDataImputer();
 
-$serializer_num = new RBX();
+$dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
+    ->apply($imputer)
+    ->apply($minMaxNormalizer)
+    ->apply($oneHotEncoder);
 
-$transformer_num->fit($dataset_num);
-
-$serializer_num->serialize($transformer_num)->saveTo(new Filesystem('trans_num.rbx'));
-
-$dataset_num->apply($transformer_num);
-
-
-$logger->info('Processing categorical features');
-
-$dataset_cat = Unlabeled::fromIterator($extractor_cat);
-
-$transformer_cat = new OneHotEncoder();
-
-$serializer_cat = new RBX();
-
-$transformer_cat->fit($dataset_cat);
-
-$serializer_cat->serialize($transformer_cat)->saveTo(new Filesystem('trans_cat.rbx'));
-
-$dataset_cat->apply($transformer_cat);
-
-
-$logger->info('Joining features into one dataset');
-
-$dataset = $dataset_num->join($dataset_cat);
-
+$serializer->serialize($imputer)->saveTo(new Filesystem('imputer.rbx'));
+$serializer->serialize($minMaxNormalizer)->saveTo(new Filesystem('minmax.rbx'));
+$serializer->serialize($oneHotEncoder)->saveTo(new Filesystem('onehot.rbx'));
 
 $logger->info('Training and validating model');
 
-$estimator = new RandomForest(new ClassificationTree(10), 300, 0.2, false);
+$estimator = new RandomForest(new ClassificationTree(10), 500, 0.8, false);
 
 $estimator->train($dataset);
 
