@@ -54,18 +54,109 @@ In this challenge, we ask you to build a predictive model that answers the quest
 
 We'll choose [Random Forest](https://docs.rubixml.com/2.0/classifiers/random-forest.html) as our learner since it offers good performance and is capable of handling both categorical and continuous features.
 
-> **Note:** The source code for this example can be found in the [train.php](https://github.com/jenutka/titanic_php/train.php) file in project root.
+> **Note:** The source code for this example can be found in the [train.php](https://github.com/jenutka/titanic_php/train.php) and in [predict.php](https://github.com/jenutka/titanic_php/predict.php) file in project root.
+
+### Script desription
+
+The script is separated into two parts:
+
+- **[train.php](https://github.com/jenutka/titanic_php/train.php)** For extracting training data from csv, feature transformation, training and saving predicting model
+- **[predict.php](https://github.com/jenutka/titanic_php/predict.php)** For
+  loading trained predicting model and for making and exporting predictions from unlabeled dataset 
+
+The training data are given to us in 'train.csv' which has features and labels for training the model. We train the model from the whole dataset, because our testing data 'test.csv' are unlabeled, so in this case we can only validate predictions with Kaggle competition.
 
 ### Extracting the Data
+
+Each feature is defined by column in 'train.csv'. For our purpose we only
+choose preferable features with the most informative value for our model. These
+are continuos and categorical. For extraction from 'train.csv' to dataset object we use [Column
+Picker](https://docs.rubixml.com/latest/extractors/column-picker.html). As the
+last extracted feature we name our target (label) feature 'Survived'.
 
 ```php
 use Rubix\ML\Datasets\Labeled;
 use Rubix\ML\Extractors\CSV;
 use Rubix\ML\Extractors\ColumnPicker;
 
-$extractor = new ColumnPicker(new CSV('dataset.csv', true), [
+$extractor = new ColumnPicker(new CSV('train.csv', true), [
+    'Pclass', 'Age', 'Fare', 'SibSp', 'Parch', 'Sex', 'Embarked', 'Survived',
 ]);
-
-$dataset = Labeled::fromIterator($extractor);
 ```
+
+### Preprocessing the Data
+
+As in the '*.csv' file are missing values, we need to preprocess them for use
+with
+[MissingDataImputer](https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html).
+For this purpose we use
+[LambdaFunction](https://docs.rubixml.com/2.0/transformers/lambda-function.html)
+in which we pass mapping function '$toPlaceholder'.
+
+'''php
+use Rubix\ML\Transformers\LambdaFunction;
+
+$toPlaceholder = function (&$sample, $offset, $types) {
+    foreach ($sample as $column => &$value) {
+        if (empty($value) && $types[$column]->isContinuous()) {
+            $value = NAN;
+        }
+        else if (empty($value) && $types[$column]->isCategorical()) {
+            $value = '?';
+        }
+    }
+};
+'''
+
+The target values in 'train.csv' are '0' and '1'. Our training model can handle
+it as floating number so we should map these as categorical variable 'Dead' and
+'Survived'.
+
+'''php
+$transformLabel = function ($label) {
+    return $label == 0 ? 'Dead' : 'Survived';
+};
+'''
+
+For numerical variables we transform data with
+[MinMaxNormalize](https://docs.rubixml.com/2.0/transformers/min-max-normalizer.html).For
+categorical variable we use
+[OneHotEncoder](https://docs.rubixml.com/2.0/transformers/one-hot-encoder.html).
+For these two transformers and for
+[MissingDataImputer](https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html)
+we instantiate new objects.
+
+'''php
+$minMaxNormalizer = new MinMaxNormalizer();
+$oneHotEncoder = new OneHotEncoder();
+$imputer = new MissingDataImputer();
+'''
+
+Finally we create the
+[Labaled](https://docs.rubixml.com/2.0/datasets/labeled.html) dataset and fit
+with our preprocessing functions.
+
+'''php
+$dataset = Labeled::fromIterator($extractor)
+    ->apply(new NumericStringConverter())
+    ->transformLabels($transformLabel);
+
+$dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
+    ->apply($imputer)
+    ->apply($minMaxNormalizer)
+    ->apply($oneHotEncoder);
+'''
+
+### Saving serializers
+
+Now because we want to apply the same fitted preprocessing on testing dataset
+'test.csv' and predicting part will be realized with separated script
+'predict.php', we need to save our fitted transformers into serialized objects.
+
+'''php
+$serializer->serialize($imputer)->saveTo(new Filesystem('imputer.rbx'));
+$serializer->serialize($minMaxNormalizer)->saveTo(new Filesystem('minmax.rbx'));
+$serializer->serialize($oneHotEncoder)->saveTo(new Filesystem('onehot.rbx'));
+'''
+
 
