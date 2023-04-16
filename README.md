@@ -64,7 +64,7 @@ The script is separated into two parts:
 - **[predict.php](https://github.com/jenutka/titanic_php/predict.php)** For
   loading trained predicting model and for making and exporting predictions from unlabeled dataset 
 
-The training data are given to us in 'train.csv' which has features and labels for training the model. We train the model from the whole dataset, because our testing data 'test.csv' are unlabeled, so in this case we can only validate predictions with Kaggle competition.
+The training data are given to us in `train.csv` which has features and labels for training the model. We train the model from the whole dataset, because our testing data 'test.csv' are unlabeled, so in this case we can only validate predictions with Kaggle competition.
 
 ### Extracting the Data
 
