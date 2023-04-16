@@ -64,15 +64,15 @@ The script is separated into two parts:
 - **[predict.php](https://github.com/jenutka/titanic_php/predict.php)** For
   loading trained predicting model and for making and exporting predictions from unlabeled dataset 
 
-The training data are given to us in `train.csv` which has features and labels for training the model. We train the model from the whole dataset, because our testing data 'test.csv' are unlabeled, so in this case we can only validate predictions with Kaggle competition.
+The training data are given to us in `train.csv` which has features and labels for training the model. We train the model from the whole dataset, because our testing data `test.csv` are unlabeled, so in this case we can only validate predictions with Kaggle competition.
 
 ### Extracting the Data
 
-Each feature is defined by column in 'train.csv'. For our purpose we only
+Each feature is defined by column in `train.csv`. For our purpose we only
 choose preferable features with the most informative value for our model. These
-are continuos and categorical. For extraction from 'train.csv' to dataset object we use [Column
+are continuos and categorical. For extraction from `train.csv` to dataset object we use [Column
 Picker](https://docs.rubixml.com/latest/extractors/column-picker.html). As the
-last extracted feature we name our target (label) feature 'Survived'.
+last extracted feature we name our target (label) feature `Survived`.
 
 ```php
 use Rubix\ML\Datasets\Labeled;
@@ -86,14 +86,14 @@ $extractor = new ColumnPicker(new CSV('train.csv', true), [
 
 ### Preprocessing the Data
 
-As in the '*.csv' file are missing values, we need to preprocess them for use
+As in the `*.csv` file are missing values, we need to preprocess them for use
 with
 [MissingDataImputer](https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html).
 For this purpose we use
 [LambdaFunction](https://docs.rubixml.com/2.0/transformers/lambda-function.html)
-in which we pass mapping function '$toPlaceholder'.
+in which we pass mapping function `$toPlaceholder`.
 
-'''php
+```php
 use Rubix\ML\Transformers\LambdaFunction;
 
 $toPlaceholder = function (&$sample, $offset, $types) {
@@ -106,17 +106,17 @@ $toPlaceholder = function (&$sample, $offset, $types) {
         }
     }
 };
-'''
+```
 
-The target values in 'train.csv' are '0' and '1'. Our training model can handle
-it as floating number so we should map these as categorical variable 'Dead' and
-'Survived'.
+The target values in `train.csv` are `0` and `1`. Our training model can handle
+it as floating number so we should map these as categorical variable `Dead` and
+`Survived`.
 
-'''php
+```php
 $transformLabel = function ($label) {
     return $label == 0 ? 'Dead' : 'Survived';
 };
-'''
+```
 
 For numerical variables we transform data with
 [MinMaxNormalize](https://docs.rubixml.com/2.0/transformers/min-max-normalizer.html).For
@@ -126,17 +126,17 @@ For these two transformers and for
 [MissingDataImputer](https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html)
 we instantiate new objects.
 
-'''php
+```php
 $minMaxNormalizer = new MinMaxNormalizer();
 $oneHotEncoder = new OneHotEncoder();
 $imputer = new MissingDataImputer();
-'''
+```
 
 Finally we create the
 [Labaled](https://docs.rubixml.com/2.0/datasets/labeled.html) dataset and fit
 with our preprocessing functions.
 
-'''php
+```php
 $dataset = Labeled::fromIterator($extractor)
     ->apply(new NumericStringConverter())
     ->transformLabels($transformLabel);
@@ -145,18 +145,18 @@ $dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
     ->apply($imputer)
     ->apply($minMaxNormalizer)
     ->apply($oneHotEncoder);
-'''
+```
 
 ### Saving serializers
 
 Now because we want to apply the same fitted preprocessing on testing dataset
-'test.csv' and predicting part will be realized with separated script
-'predict.php', we need to save our fitted transformers into serialized objects.
+`test.csv` and predicting part will be realized with separated script
+`predict.php`, we need to save our fitted transformers into serialized objects.
 
-'''php
+```php
 $serializer->serialize($imputer)->saveTo(new Filesystem('imputer.rbx'));
 $serializer->serialize($minMaxNormalizer)->saveTo(new Filesystem('minmax.rbx'));
 $serializer->serialize($oneHotEncoder)->saveTo(new Filesystem('onehot.rbx'));
-'''
+```
 
 
