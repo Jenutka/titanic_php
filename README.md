@@ -10,6 +10,10 @@
 - [Turorial](#tutorial)
 - [Introduction](#introduction)
 - [Extracting the Data](#extracting-the-data)
+- [Preprocessing the Data](#preprocessing-the-data)
+- [Saving transformers](#saving-transformers)
+- [Model training](#model-training)
+- [Saving the estimator](#saving-the-estimator)
 
 An example Rubix ML project that predicts which passengers survived the Titanic shipwreck using a Random Forest clasiffier and a very famous dataset from a [Kaggle competition] (https://www.kaggle.com/competitions/titanic). In this tutorial, you'll learn about classification and advanced preprocessing techniques. By the end of the tutorial, you'll be able to submit your own predictions to the Kaggle competition.
 
@@ -147,11 +151,15 @@ $dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
     ->apply($oneHotEncoder);
 ```
 
-### Saving serializers
+### Saving Transformers 
 
 Now because we want to apply the same fitted preprocessing on testing dataset
 `test.csv` and predicting part will be realized with separated script
 `predict.php`, we need to save our fitted transformers into serialized objects.
+For this purpose we create new
+[Filesystem](https://docs.rubixml.com/2.0/persisters/filesystem.html) objects
+with using [RBX](https://docs.rubixml.com/2.0/serializers/rbx.html) file
+format.
 
 ```php
 $serializer->serialize($imputer)->saveTo(new Filesystem('imputer.rbx'));
@@ -159,4 +167,33 @@ $serializer->serialize($minMaxNormalizer)->saveTo(new Filesystem('minmax.rbx'));
 $serializer->serialize($oneHotEncoder)->saveTo(new Filesystem('onehot.rbx'));
 ```
 
+### Model training
+
+After we have prepared our data, we can train our predicting model. As
+estimator we use
+[RandomForest](https://docs.rubixml.com/2.0/classifiers/random-forest.html)
+which is an ensemble of
+[ClassificationTrees](https://docs.rubixml.com/2.0/classifiers/classification-tree.html)
+which is good suited for our relatively small dataset.
+
+```php
+$estimator = new RandomForest(new ClassificationTree(10), 500, 0.8, false);
+
+$estimator->train($dataset);
+```
+
+### Saving the estimator
+
+Finally we save our predicting model for use with `predict.php` script. As in
+case with transformers we use [Filesystem](https://docs.rubixml.com/2.0/persisters/filesystem.html) objects with using [RBX](https://docs.rubixml.com/2.0/serializers/rbx.html) file format again. For secure of overwriting existing model, we ask user for saving the new trained model.
+
+```php
+if (strtolower(readline('Save this model? (y|[n]): ')) === 'y') {
+    $estimator = new PersistentModel($estimator, new Filesystem('model.rbx'));
+
+    $estimator->save();
+
+    $logger->info('Model saved as model.rbx');
+}
+```
 
