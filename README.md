@@ -9,11 +9,17 @@
 - [Recommended](#recommended)
 - [Turorial](#tutorial)
 - [Introduction](#introduction)
-- [Extracting the Data](#extracting-the-data)
-- [Preprocessing the Data](#preprocessing-the-data)
+- [Extracting the training Data](#extracting-the-training-data)
+- [Preprocessing the training Data](#preprocessing-the-training-data)
 - [Saving transformers](#saving-transformers)
 - [Model training](#model-training)
 - [Saving the estimator](#saving-the-estimator)
+- [Extracting the test Data](#extracting-the-test-data)
+- [Loading transformers](#loading-transformers)
+- [Preprocessing the test Data](#preprocessing-the-test-data)
+- [Loading estimator](#loading-estimator)
+- [Making predictions](#making-predictions)
+- [Saving predictions](#saving-predictions)
 
 An example Rubix ML project that predicts which passengers survived the Titanic shipwreck using a Random Forest clasiffier and a very famous dataset from a [Kaggle competition] (https://www.kaggle.com/competitions/titanic). In this tutorial, you'll learn about classification and advanced preprocessing techniques. By the end of the tutorial, you'll be able to submit your own predictions to the Kaggle competition.
 
@@ -79,7 +85,6 @@ Picker](https://docs.rubixml.com/latest/extractors/column-picker.html). As the
 last extracted feature we name our target (label) feature `Survived`.
 
 ```php
-use Rubix\ML\Datasets\Labeled;
 use Rubix\ML\Extractors\CSV;
 use Rubix\ML\Extractors\ColumnPicker;
 
@@ -88,7 +93,7 @@ $extractor = new ColumnPicker(new CSV('train.csv', true), [
 ]);
 ```
 
-### Preprocessing the Data
+### Preprocessing the training Data
 
 As in the `*.csv` file are missing values, we need to preprocess them for use
 with
@@ -131,16 +136,22 @@ For these two transformers and for
 we instantiate new objects.
 
 ```php
+use Rubix\ML\Transformers\MinMaxNormalizer;
+use Rubix\ML\Transformers\OneHotEncoder;
+use Rubix\ML\Transformers\MissingDataImputer;
+
 $minMaxNormalizer = new MinMaxNormalizer();
 $oneHotEncoder = new OneHotEncoder();
 $imputer = new MissingDataImputer();
 ```
 
 Finally we create the
-[Labaled](https://docs.rubixml.com/2.0/datasets/labeled.html) dataset and fit
+[Labeled](https://docs.rubixml.com/2.0/datasets/labeled.html) dataset and fit
 with our preprocessing functions.
 
 ```php
+use Rubix\ML\Datasets\Labeled;
+
 $dataset = Labeled::fromIterator($extractor)
     ->apply(new NumericStringConverter())
     ->transformLabels($transformLabel);
@@ -162,6 +173,9 @@ with using [RBX](https://docs.rubixml.com/2.0/serializers/rbx.html) file
 format.
 
 ```php
+use Rubix\ML\Persisters\Filesystem;
+use Rubix\ML\Serializers\RBX;
+
 $serializer->serialize($imputer)->saveTo(new Filesystem('imputer.rbx'));
 $serializer->serialize($minMaxNormalizer)->saveTo(new Filesystem('minmax.rbx'));
 $serializer->serialize($oneHotEncoder)->saveTo(new Filesystem('onehot.rbx'));
@@ -177,6 +191,9 @@ which is an ensemble of
 which is good suited for our relatively small dataset.
 
 ```php
+use Rubix\ML\Classifiers\RandomForest;
+use Rubix\ML\Classifiers\ClassificationTree;
+
 $estimator = new RandomForest(new ClassificationTree(10), 500, 0.8, false);
 
 $estimator->train($dataset);
@@ -185,9 +202,11 @@ $estimator->train($dataset);
 ### Saving the estimator
 
 Finally we save our predicting model for use with `predict.php` script. As in
-case with transformers we use [Filesystem](https://docs.rubixml.com/2.0/persisters/filesystem.html) objects with using [RBX](https://docs.rubixml.com/2.0/serializers/rbx.html) file format again. For secure of overwriting existing model, we ask user for saving the new trained model.
+case with transformers we use [Filesystem](https://docs.rubixml.com/2.0/persisters/filesystem.html) object with using [RBX](https://docs.rubixml.com/2.0/serializers/rbx.html) file format again. But now instead of serializing we use for saving predictive model [PersistentModel](https://docs.rubixml.com/2.0/persistent-model.html) object. For secure of overwriting existing model, we ask user for saving the new trained model.
 
 ```php
+use Rubix\ML\PersistentModel;
+
 if (strtolower(readline('Save this model? (y|[n]): ')) === 'y') {
     $estimator = new PersistentModel($estimator, new Filesystem('model.rbx'));
 
@@ -197,3 +216,58 @@ if (strtolower(readline('Save this model? (y|[n]): ')) === 'y') {
 }
 ```
 
+Now we have finished our training part `train.php` and we can move on
+creating predicting part `predict.php`
+
+### Extracting the test Data
+
+For predicting part we need to extract our test data which don't contain
+labels. By extracting we name the same features as for training set, but we
+omit the target `Survived`.
+
+```php
+use Rubix\ML\Extractors\ColumnPicker;
+
+$extractor = new ColumnPicker(new CSV('test.csv', true), [
+    'Pclass', 'Age', 'Fare', 'SibSp', 'Parch', 'Sex', 'Embarked',
+]);
+```
+
+### Loading transformers
+
+For transforming our test dataset we need to use the transformation fitted on
+our training dataset. So we load and deserialize our previously saved
+persistors.
+
+```php
+$persister_imputer = new Filesystem('imputer.rbx', true, new RBX());
+
+$imputer = $persister_imputer->load()->deserializeWith(new RBX);
+
+$persister_minMax = new Filesystem('minmax.rbx', true, new RBX());
+
+$minMaxNormalizer = $persister_minMax->load()->deserializeWith(new RBX);
+
+$persister_oneHot = new Filesystem('onehot.rbx', true, new RBX());
+
+$oneHotEncoder = $persister_oneHot->load()->deserializeWith(new RBX);
+```
+
+### Preprocessing the test Data
+
+For testing data we need to create new [Unlabeled](https://docs.rubixml.com/2.0/datasets/unlabeled.html) dataset object in which we pass our `$extractor`. As we have loaded our fitted transformers, we can apply them on this dataset object. As in case of training data we use function `$toPlaceholder` to map our missing values so [MissingDataImputer](#https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html) can handle missing values.
+
+```php
+$dataset = Unlabeled::fromIterator($extractor)
+    ->apply(new NumericStringConverter());
+
+$dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
+    ->apply($imputer)
+    ->apply($minMaxNormalizer)
+    ->apply($oneHotEncoder);
+```
+
+
+### Loading estimator
+### Making predictions
+### Saving predictions
