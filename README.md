@@ -20,6 +20,8 @@
 - [Loading estimator](#loading-estimator)
 - [Making predictions](#making-predictions)
 - [Saving predictions](#saving-predictions)
+- [Conclusion](#conclusion)
+
 
 An example Rubix ML project that predicts which passengers survived the Titanic shipwreck using a Random Forest clasiffier and a very famous dataset from a [Kaggle competition] (https://www.kaggle.com/competitions/titanic). In this tutorial, you'll learn about classification and advanced preprocessing techniques. By the end of the tutorial, you'll be able to submit your own predictions to the Kaggle competition.
 
@@ -216,8 +218,15 @@ if (strtolower(readline('Save this model? (y|[n]): ')) === 'y') {
 }
 ```
 
-Now we have finished our training part `train.php` and we can move on
-creating predicting part `predict.php`
+
+Now we have finished our training part `train.php`, which we execute by calling
+it from the command line.
+
+```sh
+$ php train.php
+```
+
+Now we can move on creating predicting part `predict.php`
 
 ### Extracting the test Data
 
@@ -258,6 +267,9 @@ $oneHotEncoder = $persister_oneHot->load()->deserializeWith(new RBX);
 For testing data we need to create new [Unlabeled](https://docs.rubixml.com/2.0/datasets/unlabeled.html) dataset object in which we pass our `$extractor`. As we have loaded our fitted transformers, we can apply them on this dataset object. As in case of training data we use function `$toPlaceholder` to map our missing values so [MissingDataImputer](#https://docs.rubixml.com/2.0/transformers/missing-data-imputer.html) can handle missing values.
 
 ```php
+use Rubix\ML\Datasets\Unlabeled;
+use Rubix\ML\Transformers\LambdaFunction;
+
 $dataset = Unlabeled::fromIterator($extractor)
     ->apply(new NumericStringConverter());
 
@@ -267,7 +279,78 @@ $dataset->apply(new LambdaFunction($toPlaceholder, $dataset->types()))
     ->apply($oneHotEncoder);
 ```
 
-
 ### Loading estimator
+
+Now we can load our persisted
+[RandomForest](https://docs.rubixml.com/2.0/classifiers/random-forest.html)
+estimator into our script using the static `load()` method.
+
+```php
+use Rubix\ML\PersistentModel;
+use Rubix\ML\Persisters\Filesystem;
+use Rubix\ML\Serializers\RBX;
+
+$estimator = PersistentModel::load(new Filesystem('model.rbx'));
+```
+
 ### Making predictions
+
+For making predictions on our testing unlabeled dataset we call the `predict()`
+method on our loaded estimator. We store our predicted classes under
+`$predictions` variable.
+
+```php
+$predictions = $estimator->predict($dataset);
+```
+
 ### Saving predictions
+
+Now we need to prepare our stored predictions into required format so we can
+submit it to Kaggle competition.
+
+Firstly we map back our labels into `1` and
+`O`. For this we create function `bin_mapper` which we pass as parameter into
+built-in php function `array_map`.
+
+```php
+$predictions = $estimator->predict($dataset);
+
+function bin_mapper($v)
+{
+    if ($v==="Survived") {
+        return "1";
+    } else {
+        return "0";
+    }
+}
+
+$predictions_mapped = array_map('bin_mapper', $predictions);
+```
+
+Now we extract `PassengerId` column from `test.csv`. Now we create array `$ids` for column `PassengerId`. We apply `array_unshift` function on both columns. Next we instantiate [CSV](https://docs.rubixml.com/2.0/extractors/csv.html) file `predictions.csv` and finaly export our two columns of data into it with `array_transpose` function.
+
+```php
+$predictions_mapped = array_map('bin_mapper', $predictions);
+
+$logger->info('Saving predictions to csv');
+
+$extractor = new ColumnPicker(new CSV('test.csv', true), ['PassengerId']);
+
+$ids = array_column(iterator_to_array($extractor), 'PassengerId');
+
+array_unshift($ids, 'PassengerId');
+array_unshift($predictions_mapped, 'Survived');
+
+$extractor = new CSV('predictions.csv');
+
+$extractor->export(array_transpose([$ids, $predictions_mapped]));
+```
+
+Now we can our prediction script by calling it from the command line.
+
+```sh
+$ php predict.php
+```
+### Conclusion
+
+
