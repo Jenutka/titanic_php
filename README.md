@@ -346,11 +346,22 @@ $extractor = new CSV('predictions.csv');
 $extractor->export(array_transpose([$ids, $predictions_mapped]));
 ```
 
-Now we can our prediction script by calling it from the command line.
+Now we can run our prediction script by calling it from the command line.
 
 ```sh
 $ php predict.php
 ```
+
+After succesfully generating file `predictions.csv` we can submit it to our [Kaggle competition] (https://www.kaggle.com/competitions/titanic) and look at our result in the public leaderboard.
+
 ### Conclusion
 
+This tutorial describes the whole process of machine learning predicting with [RubixML](https://docs.rubixml.com/2.0/) php library. We can take this example as a starting point to other improvements. For example we can apply advanced feature engineering to obtain more information to train the model. As next we examine the predicting model itself. We can try to tune given hyperparametres of the model or we can prove performance of other classifiers (for example [Support vector machine](https://docs.rubixml.com/2.0/classifiers/svc.html) or neural network).
 
+As next activity we can try to deploy our predicting model to our webpage or server, where the visitor can after filling the form with our features get information about his/her situation in case of embarking Titanic.
+
+This example can also serve as a template of workflow which can be apllied on another maching learning problem.
+
+### License
+
+The code is licensed [MIT](LICENSE) and the tutorial is licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
