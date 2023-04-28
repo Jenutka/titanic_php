@@ -53,7 +53,6 @@ $ composer create-project jenutka/titanic_php
 - [PHP](https://php.net) 7.4 or above
 
 #### Recommended
-- [Tensor extension](https://github.com/RubixML/Tensor) for faster training and inference
 - 1G of system memory or more
 
 ## Tutorial
@@ -330,10 +329,6 @@ $predictions_mapped = array_map('bin_mapper', $predictions);
 Now we extract `PassengerId` column from `test.csv`. Now we create array `$ids` for column `PassengerId`. We apply `array_unshift` function on both columns. Next we instantiate [CSV](https://docs.rubixml.com/2.0/extractors/csv.html) file `predictions.csv` and finaly export our two columns of data into it with `array_transpose` function.
 
 ```php
-$predictions_mapped = array_map('bin_mapper', $predictions);
-
-$logger->info('Saving predictions to csv');
-
 $extractor = new ColumnPicker(new CSV('test.csv', true), ['PassengerId']);
 
 $ids = array_column(iterator_to_array($extractor), 'PassengerId');
